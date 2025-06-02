@@ -1,4 +1,5 @@
-.vscode
-build
-venv
+.vscode/
+build/
+venv/
+out/
 *.sfc
