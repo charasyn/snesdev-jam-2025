@@ -10,3 +10,5 @@
 .global DmaToVramImmediate
 
 .global CoroutineInit
+.global CoroutineSpawn
+.global CoroutineSwitchExecutionTo

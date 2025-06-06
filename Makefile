@@ -9,7 +9,7 @@ CA65_FLAGS += -DDEBUG
 TARGET := out/build.sfc
 
 INCLUDES := $(wildcard include/*.asm) 
-SOURCES := $(wildcard src/*.asm)
+SOURCES := src/main.asm src/system.asm src/dma.asm src/coroutines.asm
 OBJECTS := $(patsubst src/%.asm,build/obj/%.o,$(SOURCES))
 
 all: $(TARGET)

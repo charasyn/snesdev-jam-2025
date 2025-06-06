@@ -74,6 +74,8 @@ NmiVector:
     rti
 
 Main:
+    jsl CoroutineInit
+    jsl CoroutineTest
     jsl EnableAutoJoypad
     jsl ResetPpuState
     ; Clear PPU registers
@@ -96,11 +98,29 @@ Main:
     lda #$0F
     sta f:$2100
 
-forever:
-    jmp forever
+@forever:
+    jmp @forever
+
+CoroutineTest:
+    FN_PROLOGUE_PRESERVE_NONE $12
+    mov32_r_const $04, CR_Test
+    jsl CoroutineSpawn
+    sta $0c
+    jsl CoroutineSwitchExecutionTo
+    pld
+    rtl
+
+CR_Test:
+    rep #$31
+    lda #$1234
+    ldx #$5678
+    ldy #$abcd
+@forever:
+    bra @forever
 
 ResetPpuState:
     rep #$31
+    phd
     tdc
     adc #.loword(-8)
     tcd
