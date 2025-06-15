@@ -99,7 +99,12 @@ CoroutineSpawn:
 ; A = coroutine index
 CoroutineSwitchExecutionTo:
     FN_PROLOGUE_PRESERVE_ONLY_A $10
+    ; Locals:
+    ; $0C - Offset to the relevant coroutine entry in coroutineStateTable
 
+    ; Check if we're already running a coroutine and enter an infinite loop if
+    ; we are. We don't support this for now.
+    ; Don't clobber A so we can use it later.
     ldx coroutinePreviousSp
     cpx #$ffff
 @illegalNestedCoroutine:
@@ -108,28 +113,40 @@ CoroutineSwitchExecutionTo:
     cpx #$ffff
     bne @illegalNestedCoroutine
 
-    tdc
-    sta coroutinePreviousDp
-
+    ; A is still the coroutine index. Get the offset into the coroutine data
+    ; (array-of-structs).
     mult_imm .sizeof(COROUTINE_STATE)
     sta $0c
     tax
+    ; Get stack used by this coroutine
     lda coroutineStateTable+COROUTINE_STATE::stackUsed,x
     sta $00
+    ; Get address of lowest byte used in the saved stack
     txa
     clc
     adc #.loword(coroutineStateTable+COROUTINE_STATE::stack+16)
     sec
     sbc $00
-    sta $02
+    tax
+    ; X now holds the lowest used address in the saved stack
+    ; Preserve both stacks so we can store them later
+    tdc
+    sta coroutinePreviousDp
     tsc
     sta coroutinePreviousSp
+    ; Subtract the needed space from the current processor stack
     sec
     sbc $00
     tcs
+
+    ; The stack has now been expanded to allow for the space needed for this
+    ; coroutine. Now, let's copy it.
+    ; The correct address for the saved stack is in X.
+    ; 6502 stack always points to an unused byte; we need to increase the
+    ; address to point to the byte which will be used
     inc
-    tay
-    ldx $02
+    tay ; Put destination address in Y
+    ; Get number of bytes to transfer (minus 1 because of how mvn works)
     lda $00
     dec
     mvn #$7e, #$7e

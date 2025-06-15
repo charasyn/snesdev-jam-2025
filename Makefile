@@ -9,7 +9,7 @@ CA65_FLAGS += -DDEBUG
 TARGET := out/build.sfc
 
 INCLUDES := $(wildcard include/*.asm) 
-SOURCES := src/main.asm src/system.asm src/dma.asm src/coroutines.asm
+SOURCES := $(shell tools/sources_from_symbolsasm.py)
 OBJECTS := $(patsubst src/%.asm,build/obj/%.o,$(SOURCES))
 
 all: $(TARGET)

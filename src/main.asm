@@ -74,29 +74,11 @@ NmiVector:
     rti
 
 Main:
+    jsl ResetPpuState
+    jsl EnableNmiAndAutoJoypad
     jsl CoroutineInit
     jsl CoroutineTest
-    jsl EnableAutoJoypad
-    jsl ResetPpuState
-    ; Clear PPU registers
-    sep #$20
-    ldx #$33
-    lda #$00
-@loop:
-    sta f:$2100,x
-    sta f:$4200,x
-    dex
-    bpl @loop
 
-    ; Set background color to $03E0
-    lda #$E0
-    sta f:$2122
-    lda #$03
-    sta f:$2122
-
-    ; Maximum screen brightness
-    lda #$0F
-    sta f:$2100
 
 @forever:
     jmp @forever
@@ -111,6 +93,19 @@ CoroutineTest:
     rtl
 
 CR_Test:
+    sep #$20
+    ; Set background color to $03E0
+    lda #$00
+    sta f:CGADD
+    lda #$E0
+    sta f:CGDATA
+    lda #$03
+    sta f:CGDATA
+
+    ; Maximum screen brightness
+    lda #$0F
+    sta f:INIDISP
+
     rep #$31
     lda #$1234
     ldx #$5678
@@ -171,6 +166,3 @@ ResetPpuState:
 
 Zeros:
     .dword 0
-
-EnableAutoJoypad:
-    rtl
