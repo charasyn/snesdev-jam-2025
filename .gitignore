@@ -4,3 +4,4 @@ venv/
 out/
 *.sfc
 *.tiled-session
+__pycache__

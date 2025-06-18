@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 '''
 This script gets a list of files to assemble based on the contents of
 `include/symbols.asm` - this allows for linkage order to be controlled from
