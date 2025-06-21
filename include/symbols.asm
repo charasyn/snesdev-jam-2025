@@ -4,16 +4,24 @@
 ; which contain `; file: foo.asm`
 
 ; file: main.asm
+.global Main
+
+; file: system.asm
+.global paletteBuffer
+.global pad1Held
+.global pad1JustPressed
+
 .global ResetVector
 .global BrkVector
 .global IrqVector
 .global NmiVector
-.global Main
 .global ResetPpuState
 .global Zeros
-
-; file: system.asm
+.global DisableScreen
+.global EnableScreenAndSetBrightness
 .global EnableNmiAndAutoJoypad
+.global UpdatePalette
+.global CompleteFrame
 
 ; file: dma.asm
 .global DmaToVramImmediate
@@ -22,3 +30,8 @@
 .global CoroutineInit
 .global CoroutineSpawn
 .global CoroutineSwitchExecutionTo
+
+; from data:
+.global test_tiles
+.global test_map
+.global test_palette

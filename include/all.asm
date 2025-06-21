@@ -1,4 +1,5 @@
 .include "symbols.asm"
 .include "snesregs.asm"
-.include "dma.asm"
 .include "macros.asm"
+.include "dma.asm"
+.include "system.asm"

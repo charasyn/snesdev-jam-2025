@@ -5,6 +5,9 @@
     vmain .byte
 .endstruct
 
+.segment "HIRAM"
+dmaToVramQueue:
+
 .segment "BANK00"
 dmaToVramTypeTable:
     .byte $01, .lobyte(VMADDL), $80 ; word
@@ -15,5 +18,4 @@ dmaToVramTypeTable:
     .byte $08, .lobyte(VMADDH), $80 ; hibyte_fixed
 
 DmaToVramImmediate:
-    brk #0
     rtl
