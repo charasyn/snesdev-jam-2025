@@ -1,19 +1,34 @@
 .include "all.asm"
 
 .segment "ZPRAM"
-frameDoneRendering: .res 2
+dmaFifoLastWritten: .res 1
+dmaFifoLastRead: .res 1
+frameToDisplay: .res 1
+frameCurrentlyDisplaying: .res 1
 paletteUpdateSetting: .res 2
+oamDmaSourceAddress: .res 2
 
-.segment "HIRAM"
-
-paletteBuffer: .res (256 * 2)
+; Note - DMA budget is stored in memory as a negative value and we add to it
+; until it reaches zero.
+nmiDmaBudget: .res 2
 HWM_INIDISP: .res 1
 HWM_OBSEL: .res 1
 HWM_MOSAIC: .res 1
 
 ; ...
 
+HWM_HDMAEN: .res 1
 HWM_NMITIMEN: .res 1
+
+.segment "LORAM"
+
+dmaFifo: .res 256
+
+.segment "HIRAM"
+
+paletteBuffer: .res (256 * 2)
+oamBuffer0: .res 544
+oamBuffer1: .res 544
 pad1Held: .res 2
 pad1JustPressed: .res 2
 
@@ -102,47 +117,122 @@ NmiHandler:
     plb
 
     ; TODO: nmi handler goes here
+    sep #$50 ; set X=8bit, and set overflow flag for later
     lda #$0000
     tcd
-    lda z:.lobyte(frameDoneRendering)
-    beq @endOfNmi
-    stz z:.lobyte(frameDoneRendering)
-    ; handle palette upload
-    lda z:.lobyte(paletteUpdateSetting)
-    beq @skipPalette
-    asl
-    ; Smaller index registers makes it faster
-    sep #$10
-    tax
-    ; Clobber DP with $4300 for speed
+    stz a:MDMAEN ; Clear Main DMA and HDMA enable
+    lda #.loword(-DMA_BUDGET_TOTAL)
+    sta z:<nmiDmaBudget
+    ldx z:<frameToDisplay
+    cpx z:<frameCurrentlyDisplaying
+    beq @noFrameCompleted
+    lda #.loword(-DMA_BUDGET_TOTAL + DMA_BUDGET_COST_CHANGE_FRAME)
+    sta z:<nmiDmaBudget
+    stx z:<frameCurrentlyDisplaying
+    cpx #0
+    bne @displayFrame1
+@displayFrame0:
+    lda #.loword(oamBuffer0)
+    sta z:<oamDmaSourceAddress
+    ; Set scroll registers
+    ; TODO
+    bra @displayFrameJoin
+@displayFrame1:
+    lda #.loword(oamBuffer1)
+    sta z:<oamDmaSourceAddress
+    ; Set scroll registers
+    ; TODO
+    bvc @displayFrameJoin ; branch should not be taken, cycles should match
+@displayFrameJoin:
+    ; Clobber DP with $4300 for speedier writes to DMA regs
     lda #$4300
     tcd
+    ; Handle OAM upload
+    stz a:OAMADDL
+    lda #(.lobyte(OAMDATA) << 8 | 0)
+    sta z:<DMAP1
+    lda a:oamDmaSourceAddress
+    sta z:<A1T1L
+    lda #544
+    sta z:<DAS1L
+    ldy #^oamBuffer0
+    sty z:<A1B1
+    ldy #$02
+    sty a:MDMAEN
+
+    ; handle palette upload
+    ldx a:paletteUpdateSetting
+    beq @skipPalette
+    ; If updating palette, determine new DMA budget
+    lda #.loword(-DMA_BUDGET_TOTAL + DMA_BUDGET_COST_CHANGE_FRAME)
+    ; Note: carry is always 1 here since the last compare should be:
+    ; ldx {0 or 1}
+    ; cpx #0
+    adc a:paletteUploadBudgetCost,x
+    sta a:nmiDmaBudget
     ; Set DMA params = 0, B-Bus address = CGDATA
     lda #(.lobyte(CGDATA) << 8 | 0)
-    sta z:.lobyte(DMAP1)
+    sta z:<DMAP1
     ; Set low word of upload source (bank will be set later)
-    lda paletteUploadSource,x
-    sta z:.lobyte(A1T1L)
+    lda a:paletteUploadSource,x
+    sta z:<A1T1L
     ; Set upload size
-    lda paletteUploadSize,x
-    sta z:.lobyte(DAS1L)
-    sep #$20
+    lda a:paletteUploadSize,x
+    sta z:<DAS1L
     ; Set upload source bank
-    lda #$7e
-    sta z:.lobyte(A1B1)
+    ldy #$7e
+    sty z:<A1B1
     ; Set upload destination address in CGADD
-    lda paletteUploadDestination,x
-    sta a:CGADD
+    ldy a:paletteUploadDestination,x
+    sty a:CGADD
     ; Enable DMA
-    lda #$02
-    sta a:MDMAEN
+    ldy #$02
+    sty a:MDMAEN
     ; Reset to "normal" state
-    rep #$31
     lda #$0000
     tcd
     ; Clear saved palette update setting, since we just transferred
-    stz z:.lobyte(paletteUpdateSetting)
+    stz z:<paletteUpdateSetting
 @skipPalette:
+@noFrameCompleted:
+    ; Do VRAM DMA
+    ldx z:<dmaFifoLastRead
+    cpx z:<dmaFifoLastWritten
+    beq @dmaDone
+@dmaLoop:
+    lda a:dmaFifo+VRAMDMA_ENTRY::sizeInBytes,x
+    clc
+    adc z:<nmiDmaBudget
+    bcs @dmaDone
+    sta z:<nmiDmaBudget
+    lda a:dmaFifo+VRAMDMA_ENTRY::sizeInBytes,x
+    sta a:DAS1L
+    lda a:dmaFifo+VRAMDMA_ENTRY::destAddr,x
+    sta a:VMADDL
+    lda a:dmaFifo+VRAMDMA_ENTRY::sourceAddr,x
+    sta a:A1T1L
+    ldy a:dmaFifo+VRAMDMA_ENTRY::sourceBank,x
+    sty a:A1B1
+    ldy a:dmaFifo+VRAMDMA_ENTRY::paramOffset,x
+    lda a:dmaToVramTypeTable+DMA_TO_VRAM_SETTING_CONFIG::dmap,y
+    sta a:DMAP1
+    txa
+    ldx a:dmaToVramTypeTable+DMA_TO_VRAM_SETTING_CONFIG::vmain,y
+    stx a:VMAIN
+    ldx #$02
+    stx a:MDMAEN
+    adc #$0008
+    tax
+    cpx z:<dmaFifoLastWritten
+    bne @dmaLoop
+@dmaDone:
+    ; Enable HDMA
+    ldy z:<HWM_HDMAEN
+    sty a:HDMAEN
+    ; Store DMA FIFO offset back to memory
+    stx z:<dmaFifoLastRead
+    ; Do whatever other processing is required
+    ; TODO
 @endOfNmi:
     rep #$31
     plb
@@ -192,12 +282,17 @@ ResetPpuState:
     jsl DisableScreen
     ; Clear VRAM
     mov32_r_const $04, Zeros
-    lda DMA_TO_VRAM_SETTING::word_fixed
-    ldx #0
-    txy
-    jsl DmaToVramImmediate
+    lda #DMA_TO_VRAM_SETTING::word_fixed
+    ldx #$8002
+    ldy #$0000
+    jsl QueueDmaToVram
+    lda #DMA_TO_VRAM_SETTING::word_fixed
+    ldx #$7ffe
+    ldy #$4001
+    jsl QueueDmaToVram
+    jsl WaitForDmaComplete
     ; Clear OAM
-    ; TODO
+    ; Will be done by NMI.
     ; Clear CGRAM
     ; Palette buffer memory will be cleared to zeros. Upload that.
     lda #PALETTE_UPLOAD_SETTING::all
@@ -207,12 +302,14 @@ ResetPpuState:
     rtl
 
 CompleteFrame:
-    rep #$31
-    lda #1
-    sta frameDoneRendering
+    sep #$20
+    lda frameCurrentlyDisplaying
+    eor #1
+    sta frameToDisplay
 @waitForFrame:
-    lda frameDoneRendering
+    cmp frameCurrentlyDisplaying
     bne @waitForFrame
+    rep #$31
     rtl
 
 Zeros:
@@ -256,6 +353,11 @@ paletteUploadDestination:
     .word $00
     .word $80
     .word $00
+paletteUploadBudgetCost:
+    .word 1
+    .word (256 + DMA_BUDGET_COST_PER_DMA)
+    .word (256 + DMA_BUDGET_COST_PER_DMA)
+    .word (512 + DMA_BUDGET_COST_PER_DMA)
 
 UpdatePalette:
     rep #$31

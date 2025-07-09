@@ -1,8 +1,15 @@
-.macro mov32_r_const dpaddr, value
+.macro mov32_r_const dpdest, value
     lda #(.loword(value))
-    sta z:dpaddr
+    sta z:dpdest
     lda #(.hiword(value))
-    sta z:.lobyte(dpaddr+2)
+    sta z:.lobyte(dpdest+2)
+.endmacro
+
+.macro mov32_r_r dpdest, dpsrc
+    lda z:dpsrc
+    sta z:dpdest
+    lda z:.lobyte(dpsrc+2)
+    sta z:.lobyte(dpdest+2)
 .endmacro
 
 .macro mult_imm multiplicand

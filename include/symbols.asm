@@ -7,9 +7,12 @@
 .global Main
 
 ; file: system.asm
+.global dmaFifoLastRead
+.global dmaFifoLastWritten
 .global paletteBuffer
 .global pad1Held
 .global pad1JustPressed
+.global dmaFifo
 
 .global ResetVector
 .global BrkVector
@@ -24,7 +27,9 @@
 .global CompleteFrame
 
 ; file: dma.asm
-.global DmaToVramImmediate
+.global dmaToVramTypeTable
+.global QueueDmaToVram
+.global WaitForDmaComplete
 
 ; file: coroutines.asm
 .global CoroutineInit
