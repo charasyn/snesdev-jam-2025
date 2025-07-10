@@ -13,6 +13,7 @@
 .global pad1Held
 .global pad1JustPressed
 .global dmaFifo
+.global HWM_INIDISP
 
 .global ResetVector
 .global BrkVector

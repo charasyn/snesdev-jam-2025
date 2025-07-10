@@ -32,6 +32,42 @@ QueueDmaToVram:
     stx z:@VAR_RunningSize
     sty z:@VAR_Dest
     mov32_r_r @VAR_TransferSource, @PARAM_Source
+
+    ; If the screen is not currently enabled, do the DMA right away.
+    lda a:HWM_INIDISP
+    and #$0080
+    beq @useTransferQueue
+    ; Screen is off (forced-blank) - do DMA now.
+    ; ... except ensure any queued DMAs have completed for correct ordering.
+    ; We also don't want to get interrupted between setting VMAIN and VMADDL
+    ; and running the DMA, and have the NMI do a DMA which overwrites them.
+    jsl WaitForDmaComplete
+    ; Switch bank to $80 and set index regs 8-bit
+    sep #$10
+    phb
+    phk
+    plb
+    lda z:@VAR_RunningSize
+    sta a:DAS0L
+    lda z:@VAR_TransferSource
+    sta a:A1T0L
+    ldy z:@VAR_TransferSource+2
+    sty a:A1B0
+    ldy z:@VAR_Type
+    lda a:dmaToVramTypeTable+DMA_TO_VRAM_SETTING_CONFIG::dmap,y
+    sta a:DMAP0
+    ldx a:dmaToVramTypeTable+DMA_TO_VRAM_SETTING_CONFIG::vmain,y
+    stx a:VMAIN
+    lda z:@VAR_Dest
+    sta a:VMADDL
+    ldy #$01
+    sty a:MDMAEN
+    rep #$31
+    plb
+    pld
+    rtl
+
+@useTransferQueue:
     lda z:@VAR_RunningSize
     beq @done
 @outerLoop:
