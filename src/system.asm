@@ -200,6 +200,9 @@ NmiHandler:
     cpx z:<dmaFifoLastWritten
     beq @dmaDone
 @dmaLoop:
+    ; Cycle-counting, this loop takes 76.75 * 8 master cycles to complete
+    ; (not including DMA). Including DMA overhead and rounding up, we get
+    ; 81 bytes of overhead.
     lda a:dmaFifo+VRAMDMA_ENTRY::sizeInBytes,x
     clc
     adc z:<nmiDmaBudget

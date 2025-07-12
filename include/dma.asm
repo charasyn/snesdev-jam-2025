@@ -37,7 +37,7 @@
 ; This is too small but we'll use it for now, until I have calculated an actual
 ; value.
 DMA_BUDGET_TOTAL = 3800
-DMA_BUDGET_COST_PER_DMA = 50
+DMA_BUDGET_COST_PER_DMA = 81
 DMA_BUDGET_COST_CHANGE_FRAME = 544 + DMA_BUDGET_COST_PER_DMA
 
 ; When DMA transfers are larger than this size, they will be split into
