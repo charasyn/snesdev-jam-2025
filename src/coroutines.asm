@@ -1,26 +1,5 @@
 .include "all.asm"
 
-.struct COROUTINE_STATE
-    sleepTime .word
-    stackUsed .word
-    stack .byte 16
-.endstruct
-.define NUM_COROUTINES 16
-
-.segment "HIRAM"
-coroutineOrderLLHeadUsed:
-    .res 2
-coroutineOrderLLHeadUnused:
-    .res 2
-coroutineOrderLL:
-    .res NUM_COROUTINES
-coroutineStateTable:
-    .res .sizeof(COROUTINE_STATE) * NUM_COROUTINES
-coroutinePreviousSp:
-    .res 2
-coroutinePreviousDp:
-    .res 2
-
 .segment "BANK00"
 CoroutineInit:
     rep #$31

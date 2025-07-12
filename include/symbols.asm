@@ -3,18 +3,36 @@
 ; The files will be linked in the order that they appear here, on the lines
 ; which contain `; file: foo.asm`
 
+; file: ram.asm
+.global dmaFifoLastWritten
+.global dmaFifoLastRead
+.global frameToDisplay
+.global frameCurrentlyDisplaying
+.global paletteUpdateSetting
+.global oamDmaSourceAddress
+.global nmiDmaBudget
+.global HWM_INIDISP
+.global HWM_OBSEL
+.global HWM_MOSAIC
+.global HWM_HDMAEN
+.global HWM_NMITIMEN
+.global dmaFifo
+.global paletteBuffer
+.global oamBuffer0
+.global oamBuffer1
+.global pad1Held
+.global pad1JustPressed
+.global coroutineOrderLLHeadUsed
+.global coroutineOrderLLHeadUnused
+.global coroutineOrderLL
+.global coroutineStateTable
+.global coroutinePreviousSp
+.global coroutinePreviousDp
+
 ; file: main.asm
 .global Main
 
 ; file: system.asm
-.global dmaFifoLastRead
-.global dmaFifoLastWritten
-.global paletteBuffer
-.global pad1Held
-.global pad1JustPressed
-.global dmaFifo
-.global HWM_INIDISP
-
 .global ResetVector
 .global BrkVector
 .global IrqVector

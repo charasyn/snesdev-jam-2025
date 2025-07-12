@@ -1,37 +1,5 @@
 .include "all.asm"
 
-.segment "ZPRAM"
-dmaFifoLastWritten: .res 1
-dmaFifoLastRead: .res 1
-frameToDisplay: .res 1
-frameCurrentlyDisplaying: .res 1
-paletteUpdateSetting: .res 2
-oamDmaSourceAddress: .res 2
-
-; Note - DMA budget is stored in memory as a negative value and we add to it
-; until it reaches zero.
-nmiDmaBudget: .res 2
-HWM_INIDISP: .res 1
-HWM_OBSEL: .res 1
-HWM_MOSAIC: .res 1
-
-; ...
-
-HWM_HDMAEN: .res 1
-HWM_NMITIMEN: .res 1
-
-.segment "LORAM"
-
-dmaFifo: .res 256
-
-.segment "HIRAM"
-
-paletteBuffer: .res (256 * 2)
-oamBuffer0: .res 544
-oamBuffer1: .res 544
-pad1Held: .res 2
-pad1JustPressed: .res 2
-
 .segment "HEADER"        ; +$7FE0 in file
     .byte "CHE TEST             " ; ROM name
     .byte $30            ; LoROM, fast-capable
@@ -245,6 +213,7 @@ NmiHandler:
     pla
     rti
 
+.export ResetPpuState
 ResetPpuState:
     FN_PROLOGUE_PRESERVE_NONE 8
     ; Clear misc. registers
@@ -284,7 +253,7 @@ ResetPpuState:
     ; Update software state
     jsl DisableScreen
     ; Clear VRAM
-    mov32_r_const $04, Zeros
+    mov32_r_const $04, fourZeros
     lda #DMA_TO_VRAM_SETTING::word_fixed
     ldx #$8002
     ldy #$0000
@@ -304,6 +273,7 @@ ResetPpuState:
     pld
     rtl
 
+.export CompleteFrame
 CompleteFrame:
     sep #$20
     lda frameCurrentlyDisplaying
@@ -315,9 +285,8 @@ CompleteFrame:
     rep #$31
     rtl
 
-Zeros:
-    .dword 0
-
+.export DisableScreen
+.export EnableScreenAndSetBrightness
 DisableScreen:
     ; Call to disable screen.
     sep #$20
@@ -331,6 +300,7 @@ EnableScreenAndSetBrightness:
     rep #$31
     rtl
 
+.export EnableNmiAndAutoJoypad
 EnableNmiAndAutoJoypad:
     sep #$20
     lda #$81
@@ -340,6 +310,20 @@ EnableNmiAndAutoJoypad:
     stz pad1Held
     stz pad1JustPressed
     rtl
+
+.export UpdatePalette
+UpdatePalette:
+    rep #$31
+    sep #$20
+    ora paletteUpdateSetting
+    sta paletteUpdateSetting
+@return:
+    rep #$31
+    rtl
+
+.export fourZeros
+fourZeros:
+    .dword 0
 
 paletteUploadSize:
     .word 1
@@ -361,12 +345,3 @@ paletteUploadBudgetCost:
     .word (256 + DMA_BUDGET_COST_PER_DMA)
     .word (256 + DMA_BUDGET_COST_PER_DMA)
     .word (512 + DMA_BUDGET_COST_PER_DMA)
-
-UpdatePalette:
-    rep #$31
-    sep #$20
-    ora paletteUpdateSetting
-    sta paletteUpdateSetting
-@return:
-    rep #$31
-    rtl
