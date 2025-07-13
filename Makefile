@@ -1,39 +1,71 @@
+### User config
+CA65 := cc65/bin/ca65
+LD65 := cc65/bin/ld65
+# Comment out to disable debug build
+DEBUG := 1
 
-CA65 := build/cc65/bin/ca65
-LD65 := build/cc65/bin/ld65
+### Variables and other stuff
+OUTDIR := out
+BUILDDIR := build
+CODESRCDIR := src
+CODEOBJDIR := $(BUILDDIR)/obj-code
+DATASRCDIR := $(BUILDDIR)/src-data
+DATAOBJDIR := $(BUILDDIR)/obj-data
+TARGET := $(OUTDIR)/build.sfc
 
 CA65_FLAGS := --cpu 65816 -s -g -U -I include
-
-CA65_FLAGS += -DDEBUG
-
-TARGET := out/build.sfc
-
 LD65_FLAGS := --dbgfile $(patsubst %.sfc,%.dbg,$(TARGET))
 
-INCLUDES := $(wildcard include/*.asm) 
+ifneq (,$(DEBUG))
+CA65_FLAGS += -DDEBUG
+endif
+
+INCLUDES := $(wildcard include/*.asm)
 SOURCES := $(shell tools/sources_from_symbolsasm.py)
-OBJECTS := $(patsubst src/%.asm,build/obj/%.o,$(SOURCES))
-OBJECTS += build/data-obj/test.o
-OBJECTS += build/data-obj/text_graphics.o
+OBJECTS := $(patsubst $(CODESRCDIR)/%.asm,$(CODEOBJDIR)/%.o,$(SOURCES))
 
+### "Meta" rules, not creating a useful build artifact
 all: $(TARGET)
-
-$(TARGET): misc/lorom.cfg $(OBJECTS)
-	$(LD65) $(LD65_FLAGS) -o $@ -C $(filter %.cfg,$^) $(filter %.o,$^)
-
-build/obj/%.o: src/%.asm $(INCLUDES)
-	$(CA65) $(CA65_FLAGS) -o $@ $<
-
-build/data-obj/%.o: build/data-src/%.asm
-	$(CA65) $(CA65_FLAGS) -o $@ $<
-
-build/data-src/test.asm: experiments/test.tmj experiments/test.tsj experiments/four-seasons-tileset.png tools/tmj_to_bin.py
-	tools/tmj_to_bin.py $< $@
-
-build/data-src/text_graphics.asm: assets/text-graphics.png assets/text-graphics_palette.png tools/tileimg_to_bin.py
-	tools/tileimg_to_bin.py --bpp=2 assets/text-graphics.png assets/text-graphics_palette.png $@
 
 .PHONY: all clean
 
+ifneq (,$(filter clean,$(MAKECMDGOALS)))
+  ifneq (clean,$(MAKECMDGOALS))
+    $(error Cannot make clean target as well as other targets)
+  endif
+endif
+
 clean:
-	rm -f $(OBJECTS) $(TARGET)
+	rm -rf $(OUTDIR) $(BUILDDIR)
+
+# This rule adds a dependency from all object files to both directories.
+# It must be listed before the rule which actually makes the object, as
+# the last recipe listed for a target will be the one used.
+$(OBJECTS): | $(OBJDIR) $(DATAOBJDIR)
+
+$(OUTDIR) $(BUILDDIR) $(CODEOBJDIR) $(DATASRCDIR) $(DATAOBJDIR):
+	mkdir -p $@
+
+# We will create this included Makefile using a Python script
+$(BUILDDIR)/rules.mk: sources.yaml Makefile tools/sources_to_rules.py | $(BUILDDIR)
+	tools/sources_to_rules.py --input=$< --output=$@
+
+# Ensure this is only included if we aren't doing `make clean`.
+# Ensure this is included before the hardcoded rules, as otherwise it will
+# overwrite their recipes.
+ifeq (,$(filter clean,$(MAKECMDGOALS)))
+  -include $(BUILDDIR)/rules.mk
+endif
+
+### Hardcoded rules
+
+$(TARGET): misc/lorom.cfg $(OBJECTS) | $(OUTDIR)
+	$(LD65) $(LD65_FLAGS) -o $@ -C $(filter %.cfg,$^) $(filter %.o,$^)
+
+# Code source files depend on includes
+$(CODEOBJDIR)/%.o: $(CODESRCDIR)/%.asm $(INCLUDES) | $(CODEOBJDIR)
+	$(CA65) $(CA65_FLAGS) -o $@ $<
+
+# Data source files do not depend on includes
+$(DATAOBJDIR)/%.o: $(DATASRCDIR)/%.asm | $(DATAOBJDIR)
+	$(CA65) $(CA65_FLAGS) -o $@ $<

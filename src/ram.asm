@@ -1,3 +1,4 @@
+;;; symbolhandler: export-all
 .include "all.asm"
 
 .segment "ZPRAM"

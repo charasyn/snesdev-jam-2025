@@ -1,0 +1,14 @@
+- AsmFile: {src: src/ram.asm}
+- AsmFile: {src: src/system.asm}
+- AsmFile: {src: src/main.asm}
+- AsmFile: {src: src/dma.asm}
+- AsmFile: {src: src/coroutines.asm}
+
+- TiledMap:
+    src: experiments/test.tmj
+    dest: Asset_MapTest
+
+- RawGraphics:
+    src: assets/text-graphics.png
+    srcPalette: assets/text-graphics_palette.png
+    dest: Asset_TextGraphics
