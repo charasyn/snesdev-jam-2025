@@ -4,8 +4,8 @@
 
 WindowDefinitionTable:
     ; x (tiles), y (tiles), w (characters), h (characters)
-    .byte 12, 4, 14, 4
-    .byte 12, 4, 14, 4
+    .byte 1, 1, 1, 1
+    .byte 14, 4, 14, 4
     .byte 12, 4, 14, 4
     .byte 12, 4, 14, 4
     .byte 12, 4, 14, 4
@@ -115,7 +115,6 @@ WindowClearCharacterBuffer:
     FN_PROLOGUE_PRESERVE_ONLY_A $10
     sta $00
     jsl WindowGetDefinitionOffset
-    sta $02
     tax
     lda f:WindowDefinitionTable+WINDOW_DEFINITION::width,x
     ; skip masking to 8-bit since the upper byte of Y doesn't matter
@@ -140,12 +139,148 @@ WindowClearCharacterBuffer:
     pld
     rtl
 
+; A = entry in windowDisplayBuffer (low 8: char #, high 8: attrs)
+; Returns the tilemap entry for the top tile in $04, bottom tile in $06
+; TODO: does this follow the calling convention for returning?
+_L_WindowCharAttrsToPpuMapEntry:
+    sta $04
+    and #$000f
+    sta $06
+    lda $04
+    and #$00f0
+    asl
+    ora $06
+    sta $06
+    lda $04
+    and #$0700
+    asl
+    asl
+    ora $06
+    sta $04
+    ora #$0010
+    sta $06
+    rts
+
 ; A = window ptr
 WindowRedraw:
-    FN_PROLOGUE_PRESERVE_ONLY_A $10
+    FN_PROLOGUE_PRESERVE_ONLY_A $18
+    sta $08
+    tax
+    lda a:WINDOW_ACTIVE_STATE::charBufferPtr,x
+    sta $0a
+    txa
+    jsl WindowGetDefinitionOffset
+    sta $0c
+    tax
+    lda f:WindowDefinitionTable+WINDOW_DEFINITION::width,x
+    and #$00ff
+    sta $10
+    lda f:WindowDefinitionTable+WINDOW_DEFINITION::height,x
+    and #$00ff
+    sta $12
+    lda f:WindowDefinitionTable+WINDOW_DEFINITION::posY,x
+    and #$00ff
+    mult_imm SCREEN_WIDTH_TILES
+    sta $00
+    lda f:WindowDefinitionTable+WINDOW_DEFINITION::posX,x
+    and #$00ff
+    clc
+    adc $00
+    ; Convert tilemap entry # to offset in BG3
+    asl
+    sta $0e
+    tay
 
+    ; Draw window border
+    ; Top row
+    lda #$2001
+    sta a:.loword(bg3Buffer+(-SCREEN_WIDTH_TILES-1)*2),y
+    ldx $10
+    lda #$2002
+@loopTop:
+    sta a:.loword(bg3Buffer+(-SCREEN_WIDTH_TILES)*2),y
+    iny
+    iny
+    dex
+    bne @loopTop
+    lda #$6001
+    sta a:.loword(bg3Buffer+(-SCREEN_WIDTH_TILES)*2),y
+    ; Sides
+    ldx $0e
+    lda $12
+    asl
+    sta $00
+    clc
+@loopSides:
+    lda #$2003
+    sta a:.loword(bg3Buffer-2),x
+    lda #$6003
+    sta a:bg3Buffer,y
+    dec $00
+    beq @sidesDone
+    txa
+    adc #SCREEN_WIDTH_TILES*2
+    tax
+    tya
+    adc #SCREEN_WIDTH_TILES*2
+    tay
+    bra @loopSides
+@sidesDone:
+    ; Bottom row
+    lda #$a001
+    sta a:.loword(bg3Buffer+(SCREEN_WIDTH_TILES-1)*2),x
+    ldy $10
+    lda #$a002
+@loopBottom:
+    sta a:.loword(bg3Buffer+(SCREEN_WIDTH_TILES)*2),x
+    inx
+    inx
+    dey
+    bne @loopBottom
+    lda #$e001
+    sta a:.loword(bg3Buffer+(SCREEN_WIDTH_TILES)*2),x
+
+    ; Draw window contents
+@loopCharsRow:
+    lda $0e
+    sta $16
+    lda $10
+    sta $14
+@loopCharsCol:
+    ldx $0a
+    lda a:0,x
+    inx
+    inx
+    stx $0a
+    jsr _L_WindowCharAttrsToPpuMapEntry
+    ldx $16
+    lda $04
+    sta a:bg3Buffer,x
+    lda $06
+    sta a:.loword(bg3Buffer+(SCREEN_WIDTH_TILES)*2),x
+    inx
+    inx
+    stx $16
+    dec $14
+    bne @loopCharsCol
+    lda $0e
+    clc
+    adc #SCREEN_WIDTH_TILES*2*2
+    sta $0e
+    dec $12
+    bne @loopCharsRow
     pld
     rtl
+
+; A = window definition ID
+WindowRedrawByDefinitionId:
+    jsl WindowFindByDefinitionId
+    cmp #0
+    beq @errorWindowNotFound
+    jsl WindowRedraw
+    rtl
+@errorWindowNotFound:
+    bra @errorWindowNotFound
 
 ; A = window definition ID
 WindowOpenByDefinitionId:
@@ -180,7 +315,7 @@ WindowOpenByDefinitionId:
     txa
     jsl WindowClearCharacterBuffer
     ; Draw the window
-    lda $00
+    lda $02
     jsl WindowRedraw
 @return:
     pld

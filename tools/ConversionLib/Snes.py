@@ -70,7 +70,7 @@ class SnesPalette:
         ret = cls(bpp=bpp, numRows=numRows)
         for ty in range(numRows):
             py = ty * 8
-            for tx in range(16):
+            for tx in range(numColoursPerRow):
                 px = tx * 8
                 tileImage = image.crop((px, py, px+8, py+8))
                 color = tileImage.getcolors(1)
@@ -91,7 +91,7 @@ class SnesPalette:
             ret = [_c(*self.backdrop)]
             for colour in pal:
                 ret.append(_c(*colour))
-            for _ in range(len(ret), 16):
+            for _ in range(len(ret), self.numColoursPerRow):
                 ret.append(_c(*self.backdrop))
             return ret
         return b''.join(b''.join(x.to_bytes(2, 'little') for x in _p(pal)) for pal in self.subpalettes)

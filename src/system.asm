@@ -156,12 +156,12 @@ NmiHandler:
     ; Enable DMA
     ldy #$02
     sty a:MDMAEN
+    ; Clear saved palette update setting, since we just transferred
+    stz a:paletteUpdateSetting
+@skipPalette:
     ; Reset to "normal" state
     lda #$0000
     tcd
-    ; Clear saved palette update setting, since we just transferred
-    stz z:<paletteUpdateSetting
-@skipPalette:
 @noFrameCompleted:
     ; Do VRAM DMA
     ldx z:<dmaFifoLastRead
@@ -374,7 +374,6 @@ PpuSetBg3Tile:
 PpuSetBg3Map:
     sep #$20
     xba
-    asl
     and #$fc
     pha
     txa

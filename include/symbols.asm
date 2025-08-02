@@ -72,6 +72,7 @@
 
 ; file: textengine.asm
 .global WindowInit
+.global WindowRedrawByDefinitionId
 .global WindowOpenByDefinitionId
 
 ; from data:

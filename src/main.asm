@@ -6,17 +6,56 @@
 .segment "BANK00"
 
 Main:
-    rep #$31
+    FN_PROLOGUE_PRESERVE_NONE $12
     jsl EnableNmiAndAutoJoypad
     jsl ResetPpuState
     jsl WindowInit
     jsl CoroutineInit
     jsl InitPpuForText
-    lda #0
+    lda #1
     jsl WindowOpenByDefinitionId
+    mov32_r_const $04, bg3Buffer
+    ldx #TILEMAP_SIZE
+    ldy #$7c00
+    lda #DMA_TO_VRAM_SETTING::word
+    jsl QueueDmaToVram
+    jsl CompleteFrame
+
+    jsl TestDrawText
+    lda #1
+    jsl WindowRedrawByDefinitionId
+    mov32_r_const $04, bg3Buffer
+    ldx #TILEMAP_SIZE
+    ldy #$7c00
+    lda #DMA_TO_VRAM_SETTING::word
+    jsl QueueDmaToVram
+    jsl CompleteFrame
+
 
 @forever:
     jmp @forever
+
+textStr:
+    .byte $10, "Hello world! "
+    .byte $10, "This is a    "
+    .byte     " hacky test :)"
+    .byte 0
+
+TestDrawText:
+    ldx #0
+    txy
+    bra @strInitial
+@strLoop:
+    sta a:windowDisplayBuffer,y
+    inx
+    iny
+    iny
+@strInitial:
+    lda f:textStr,x
+    and #$00ff
+    bne @strLoop
+@strDone:
+    rtl
 
 InitPpuForText:
     FN_PROLOGUE_PRESERVE_NONE $12
@@ -35,8 +74,9 @@ InitPpuForText:
     sta a:paletteBuffer,x
     dex
     dex
-    ; Skip copying entry #0
-    bne @paletteCopyLoop
+    ;; Skip copying entry #0
+    ;bne @paletteCopyLoop
+    bpl @paletteCopyLoop
     lda #PALETTE_UPLOAD_SETTING::firstHalf
     sta a:paletteUpdateSetting
 
@@ -56,7 +96,7 @@ InitPpuForText:
     ldx #BG_MAP_MODE::s32x32
     jsl PpuSetBg3Map
     ; Enable BG3 to be displayed on the main screen
-    lda #$0008
+    lda #$0004
     jsl PpuSetTmTs
 
     ; Display frame (to trigger DMAs)

@@ -54,6 +54,12 @@
         asl
         asl
         adc z:0
+    .elseif multiplicand = 32
+        asl
+        asl
+        asl
+        asl
+        asl
     .endif
 .endmacro
 
