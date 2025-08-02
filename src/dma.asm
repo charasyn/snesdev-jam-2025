@@ -1,6 +1,5 @@
 .include "all.asm"
 
-
 .segment "BANK00"
 dmaToVramTypeTable:
     .byte $01, .lobyte(VMDATAL), $80 ; word

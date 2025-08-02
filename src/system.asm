@@ -345,3 +345,46 @@ paletteUploadBudgetCost:
     .word (256 + DMA_BUDGET_COST_PER_DMA)
     .word (256 + DMA_BUDGET_COST_PER_DMA)
     .word (512 + DMA_BUDGET_COST_PER_DMA)
+
+PpuSetMode:
+    sep #$20
+    sta f:BGMODE
+    sta a:HWM_BGMODE
+    rep #$20
+    rtl
+
+PpuSetBg3Tile:
+    sep #$20
+    xba
+    lsr
+    lsr
+    lsr
+    lsr
+    and #$0f
+    pha
+    lda a:HWM_BG34NBA
+    and #$f0
+    ora 1,s
+    sta f:BG34NBA
+    sta a:HWM_BG34NBA
+    pla
+    rep #$20
+    rtl
+
+PpuSetBg3Map:
+    sep #$20
+    xba
+    asl
+    and #$fc
+    pha
+    txa
+    and #$03
+    ora 1,s
+    sta f:BG3SC
+    pla
+    rep #$20
+    rtl
+
+PpuSetTmTs:
+    sta f:TM
+    rtl

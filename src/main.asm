@@ -6,13 +6,70 @@
 .segment "BANK00"
 
 Main:
+    rep #$31
     jsl EnableNmiAndAutoJoypad
     jsl ResetPpuState
+    jsl WindowInit
     jsl CoroutineInit
-    jsl CoroutineTest
+    jsl InitPpuForText
+    lda #0
+    jsl WindowOpenByDefinitionId
+
 @forever:
     jmp @forever
 
+InitPpuForText:
+    FN_PROLOGUE_PRESERVE_NONE $12
+
+    ; Upload font
+    mov32_r_const $04, Asset_TextGraphics_tiles
+    ldx #Asset_TextGraphics_tiles_size
+    ldy #$6000
+    lda #DMA_TO_VRAM_SETTING::word
+    jsl QueueDmaToVram
+
+    ; Upload palette
+    ldx #Asset_TextGraphics_palette_size-2
+@paletteCopyLoop:
+    lda f:Asset_TextGraphics_palette,x
+    sta a:paletteBuffer,x
+    dex
+    dex
+    ; Skip copying entry #0
+    bne @paletteCopyLoop
+    lda #PALETTE_UPLOAD_SETTING::firstHalf
+    sta a:paletteUpdateSetting
+
+    ; DMA empty BG3 buffer to VRAM
+    mov32_r_const $04, bg3Buffer
+    ldx #TILEMAP_SIZE
+    ldy #$7c00
+    lda #DMA_TO_VRAM_SETTING::word
+    jsl QueueDmaToVram
+
+    ; Set PPU mode and configure BG3
+    lda #1
+    jsl PpuSetMode
+    lda #$6000
+    jsl PpuSetBg3Tile
+    lda #$7C00
+    ldx #BG_MAP_MODE::s32x32
+    jsl PpuSetBg3Map
+    ; Enable BG3 to be displayed on the main screen
+    lda #$0008
+    jsl PpuSetTmTs
+
+    ; Display frame (to trigger DMAs)
+    jsl CompleteFrame
+
+    ; Maximum screen brightness
+    lda #$000F
+    jsl EnableScreenAndSetBrightness
+
+    pld
+    rtl
+
+; Disabled now...
 CoroutineTest:
     FN_PROLOGUE_PRESERVE_NONE $12
     mov32_r_const $04, CR_Test
@@ -41,3 +98,25 @@ CR_Test:
     ldy #$abcd
 @forever:
     bra @forever
+
+; TestMultiplication:
+;     lda #$0101
+;     ldy #$005a
+;     jsl Mult16x8
+;     cmp #$5a5a
+; @mult1err:
+;     bne @mult1err
+;
+;     lda #$0123
+;     ldy #$0045
+;     jsl Mult16x8
+;     cmp #$4e6f
+; @mult2err:
+;     bne @mult2err
+;
+;     lda #123
+;     ldy #100
+;     jsl Mult16x8
+;     cmp #12300
+; @mult3err:
+;     bne @mult3err

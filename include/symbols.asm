@@ -11,15 +11,19 @@
 .global paletteUpdateSetting
 .global oamDmaSourceAddress
 .global nmiDmaBudget
+.global HWM_HDMAEN
+.global dmaFifo
 .global HWM_INIDISP
 .global HWM_OBSEL
 .global HWM_MOSAIC
-.global HWM_HDMAEN
+.global HWM_BGMODE
+.global HWM_BG12NBA
+.global HWM_BG34NBA
 .global HWM_NMITIMEN
-.global dmaFifo
 .global paletteBuffer
 .global oamBuffer0
 .global oamBuffer1
+.global bg3Buffer
 .global pad1Held
 .global pad1JustPressed
 .global coroutineOrderLLHeadUsed
@@ -28,6 +32,10 @@
 .global coroutineStateTable
 .global coroutinePreviousSp
 .global coroutinePreviousDp
+.global windowFrontPtr
+.global windowDefinitionToActiveIdx
+.global windowActiveStateTable
+.global windowDisplayBuffer
 
 ; file: main.asm
 .global Main
@@ -44,6 +52,10 @@
 .global EnableNmiAndAutoJoypad
 .global UpdatePalette
 .global CompleteFrame
+.global PpuSetBg3Map
+.global PpuSetBg3Tile
+.global PpuSetMode
+.global PpuSetTmTs
 
 ; file: dma.asm
 .global dmaToVramTypeTable
@@ -55,7 +67,18 @@
 .global CoroutineSpawn
 .global CoroutineSwitchExecutionTo
 
+; file: math.asm
+.global Mult16x8
+
+; file: textengine.asm
+.global WindowInit
+.global WindowOpenByDefinitionId
+
 ; from data:
-.global test_tiles
-.global test_map
-.global test_palette
+.global Asset_MapTest_tiles
+.global Asset_MapTest_map
+.global Asset_MapTest_palette
+.global Asset_TextGraphics_tiles
+.global Asset_TextGraphics_tiles_size
+.global Asset_TextGraphics_palette
+.global Asset_TextGraphics_palette_size
