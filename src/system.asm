@@ -275,6 +275,10 @@ ResetPpuState:
 
 .export CompleteFrame
 CompleteFrame:
+    lda a:bg3BufferDirty
+    beq @skipBg3Upload
+    jsl UploadBg3
+@skipBg3Upload:
     sep #$20
     lda frameCurrentlyDisplaying
     eor #1
@@ -283,6 +287,16 @@ CompleteFrame:
     cmp frameCurrentlyDisplaying
     bne @waitForFrame
     rep #$31
+    rtl
+
+UploadBg3:
+    FN_PROLOGUE_PRESERVE_NONE $08
+    mov32_r_const $04, bg3Buffer
+    ldx #BG3_TILEMAP_SIZE
+    ldy #$7c00
+    lda #DMA_TO_VRAM_SETTING::word
+    jsl QueueDmaToVram
+    pld
     rtl
 
 .export DisableScreen

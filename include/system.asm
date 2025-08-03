@@ -8,6 +8,7 @@
 .define SCREEN_WIDTH_TILES 32
 .define SCREEN_HEIGHT_TILES 28
 .define TILEMAP_SIZE 32*32*2
+.define BG3_TILEMAP_SIZE 32*28*2
 
 .enum BG_MAP_MODE
     s32x32 = 0

@@ -14,31 +14,33 @@ Main:
     jsl InitPpuForText
     lda #1
     jsl WindowOpenByDefinitionId
-    mov32_r_const $04, bg3Buffer
-    ldx #TILEMAP_SIZE
-    ldy #$7c00
-    lda #DMA_TO_VRAM_SETTING::word
-    jsl QueueDmaToVram
     jsl CompleteFrame
 
-    jsl TestDrawText
+    mov32_r_const $04, textStr
+    jsl TextParse
+
     lda #1
     jsl WindowRedrawByDefinitionId
-    mov32_r_const $04, bg3Buffer
-    ldx #TILEMAP_SIZE
-    ldy #$7c00
-    lda #DMA_TO_VRAM_SETTING::word
-    jsl QueueDmaToVram
     jsl CompleteFrame
 
 
 @forever:
     jmp @forever
 
+.macro T_PAUSE frames
+    .byte 2, 0, frames
+.endmacro
+
 textStr:
-    .byte $10, "Hello world! "
-    .byte $10, "This is a    "
-    .byte     " hacky test :)"
+    .byte "\x10Hello world!\n"
+    .byte "\x10Pause CC test:\n"
+    .byte " 1 "
+    T_PAUSE 60
+    .byte "2 "
+    T_PAUSE 60
+    .byte "3 "
+    T_PAUSE 60
+    .byte "Done!"
     .byte 0
 
 TestDrawText:
@@ -79,13 +81,6 @@ InitPpuForText:
     bpl @paletteCopyLoop
     lda #PALETTE_UPLOAD_SETTING::firstHalf
     sta a:paletteUpdateSetting
-
-    ; DMA empty BG3 buffer to VRAM
-    mov32_r_const $04, bg3Buffer
-    ldx #TILEMAP_SIZE
-    ldy #$7c00
-    lda #DMA_TO_VRAM_SETTING::word
-    jsl QueueDmaToVram
 
     ; Set PPU mode and configure BG3
     lda #1

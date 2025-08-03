@@ -14,6 +14,7 @@ DATAOBJDIR := $(BUILDDIR)/obj-data
 TARGET := $(OUTDIR)/build.sfc
 
 CA65_FLAGS := --cpu 65816 -s -g -U -I include
+CA65_FLAGS += --feature string_escapes --feature underline_in_numbers
 LD65_FLAGS := --dbgfile $(patsubst %.sfc,%.dbg,$(TARGET))
 
 ifneq (,$(DEBUG))

@@ -5,4 +5,5 @@
 .include "coroutines.asm"
 .include "dma.asm"
 .include "system.asm"
+.include "windows.asm"
 .include "textengine.asm"

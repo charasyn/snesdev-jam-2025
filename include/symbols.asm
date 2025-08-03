@@ -24,6 +24,7 @@
 .global oamBuffer0
 .global oamBuffer1
 .global bg3Buffer
+.global bg3BufferDirty
 .global pad1Held
 .global pad1JustPressed
 .global coroutineOrderLLHeadUsed
@@ -70,10 +71,15 @@
 ; file: math.asm
 .global Mult16x8
 
-; file: textengine.asm
+; file: windows.asm
 .global WindowInit
 .global WindowRedrawByDefinitionId
 .global WindowOpenByDefinitionId
+.global WindowActiveDrawCharacter
+.global WindowActiveCursorNewline
+
+; file: textengine.asm
+.global TextParse
 
 ; from data:
 .global Asset_MapTest_tiles

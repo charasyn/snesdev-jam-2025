@@ -36,6 +36,7 @@ oamBuffer0: .res 544
 oamBuffer1: .res 544
 
 bg3Buffer: .res (32 * 28 * 2)
+bg3BufferDirty: .res 2
 
 pad1Held: .res 2
 pad1JustPressed: .res 2
