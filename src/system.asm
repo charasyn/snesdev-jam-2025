@@ -279,6 +279,7 @@ CompleteFrame:
     beq @skipBg3Upload
     jsl UploadBg3
 @skipBg3Upload:
+    stz a:bg3BufferDirty
     sep #$20
     lda frameCurrentlyDisplaying
     eor #1

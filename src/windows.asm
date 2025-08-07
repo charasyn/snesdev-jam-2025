@@ -275,6 +275,43 @@ WindowRedraw:
     pld
     rtl
 
+; A = window ptr
+; X = character
+_L_RenderCharacterAtWindowCursorToBg3:
+    FN_PROLOGUE $08
+    sta $00
+    stx $02
+    jsl WindowGetDefinitionOffset
+    tax
+    ; Get (cursorY * 2 * SCREEN_WIDTH_TILES + cursorX)
+    ldy $00
+    lda a:WINDOW_ACTIVE_STATE::cursorY,y
+    mult_imm SCREEN_WIDTH_TILES
+    ; Window ptr gone from $00
+    asl
+    adc a:WINDOW_ACTIVE_STATE::cursorX,y
+    ; We now have the tilemap entry # relative to the top left in A. We need
+    ; to turn it into an offset relative to the start of the BG3 map.
+    ; Multiply by 2 and then add the precalculated offset from the start of the
+    ; BG3 buffer.
+    asl
+    adc f:WindowDefinitionTable+WINDOW_DEFINITION::offsetToTilemapEntry,x
+    sta $00
+    ; Calculate the tilemap values to use for this character.
+    lda $02
+    jsr _L_WindowCharAttrsToPpuMapEntry
+    ; Write to BG3 mem
+    ldx $00
+    lda $04
+    sta a:bg3Buffer,x
+    lda $06
+    sta a:.loword(bg3Buffer+(SCREEN_WIDTH_TILES)*2),x
+    ; Mark BG3 buffer as dirty
+    lda #1
+    sta bg3BufferDirty
+    pld
+    rts
+
 ; A = window definition ID
 WindowRedrawByDefinitionId:
     jsl WindowFindByDefinitionId
@@ -362,9 +399,9 @@ WindowActiveDrawCharacter:
     tay
     lda $08
     sta a:0,y
-    ; TODO: update BG3 just for this character spot
+    tax
     lda a:windowFrontPtr
-    jsl WindowRedraw
+    jsr _L_RenderCharacterAtWindowCursorToBg3
     ; Advance cursor
     ldy a:windowFrontPtr
     lda a:WINDOW_ACTIVE_STATE::cursorX,y

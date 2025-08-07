@@ -43,22 +43,6 @@ textStr:
     .byte "Done!"
     .byte 0
 
-TestDrawText:
-    ldx #0
-    txy
-    bra @strInitial
-@strLoop:
-    sta a:windowDisplayBuffer,y
-    inx
-    iny
-    iny
-@strInitial:
-    lda f:textStr,x
-    and #$00ff
-    bne @strLoop
-@strDone:
-    rtl
-
 InitPpuForText:
     FN_PROLOGUE_PRESERVE_NONE $12
 
