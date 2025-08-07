@@ -77,6 +77,7 @@
 .global WindowOpenByDefinitionId
 .global WindowActiveDrawCharacter
 .global WindowActiveCursorNewline
+.global WindowCloseByDefinitionId
 
 ; file: textengine.asm
 .global TextParse

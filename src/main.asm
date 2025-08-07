@@ -22,9 +22,29 @@ Main:
     lda #1
     jsl WindowRedrawByDefinitionId
     jsl CompleteFrame
+    
+    lda #2
+    jsl WindowOpenByDefinitionId
+    
+    lda #3
+    jsl WindowOpenByDefinitionId
+    jsl CompleteFrame
+    
+    lda #2
+    jsl WindowOpenByDefinitionId
+    mov32_r_const $04, textStr2
+    jsl TextParse
+    
+    lda #3
+    jsl WindowOpenByDefinitionId
+    mov32_r_const $04, textStr3
+    jsl TextParse
 
+    lda #1
+    jsl WindowCloseByDefinitionId
 
 @forever:
+    jsl CompleteFrame
     jmp @forever
 
 .macro T_PAUSE frames
@@ -35,12 +55,20 @@ textStr:
     .byte "\x10Hello world!\n"
     .byte "\x10Pause CC test:\n"
     .byte " 1 "
-    T_PAUSE 60
+    T_PAUSE 30
     .byte "2 "
-    T_PAUSE 60
+    T_PAUSE 30
     .byte "3 "
-    T_PAUSE 60
+    T_PAUSE 30
     .byte "Done!"
+    .byte 0
+
+textStr2:
+    .byte " Window 2"
+    .byte 0
+
+textStr3:
+    .byte " Window 3"
     .byte 0
 
 InitPpuForText:

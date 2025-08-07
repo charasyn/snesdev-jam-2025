@@ -13,8 +13,9 @@
 WindowDefinitionTable:
     ; x (tiles), y (tiles), w (characters), h (characters)
     window_def 1, 1, 1, 1
-    window_def 4, 3, 24, 4
-    window_def 12, 4, 14, 4
+    window_def 4, 3, 24, 3
+    window_def 4, 12, 10, 2
+    window_def 18, 12, 10, 2
     window_def 12, 4, 14, 4
     window_def 12, 4, 14, 4
     window_def 12, 4, 14, 4
@@ -73,8 +74,86 @@ WindowFindByDefinitionId:
     rtl
 
 ; A = window state ptr to unlink
+; Returns same ptr in A
+;
+; Window * WindowUnlinkFromLL(Window * WindowCurrent) {
+;     Window * WindowNext = WindowCurrent->ptrNext;
+;     Window * WindowPrev = WindowCurrent->ptrPrev;
+;     if (WindowPrev) {
+;         if (windowFrontPtr == WindowCurrent) { error(); }
+;         WindowPrev->ptrNext = WindowNext;
+;     } else if (windowFrontPtr == WindowCurrent) {
+;         windowFrontPtr = WindowNext;
+;     }
+;     if (WindowNext) {
+;         WindowNext->ptrPrev = WindowPrev;
+;     }
+;     return WindowCurrent;
+; }
 WindowUnlinkFromLL:
+; WindowCurrent is in X after the initial TAX instruction
+@WindowPrev = $00
+@WindowNext = $02
+    FN_PROLOGUE_PRESERVE_ONLY_A $04
+    tax
+    beq @Return
+    ; Load the Next and Prev pointers into local variables to simplify code
+    lda a:WINDOW_ACTIVE_STATE::ptrNext,x
+    sta z:<@WindowNext
+    lda a:WINDOW_ACTIVE_STATE::ptrPrev,x
+    sta z:<@WindowPrev
+    beq @DontUpdateBeforeToAfter
+    ; WindowCurrent (X) has a window before it in the LL. Ensure that it is not
+    ; somehow pointed to as the front of the linked list.
+    ; (Integrity check)
+    cpx a:windowFrontPtr
+    beq @ErrorWindowInFrontHasBefore
+    tay
+    ; WindowPrev->ptrNext = WindowNext
+    lda z:<@WindowNext
+    sta a:WINDOW_ACTIVE_STATE::ptrNext,y
+    bra @DontChangeFrontPtr
 
+@DontUpdateBeforeToAfter:
+    cpx a:windowFrontPtr
+    bne @DontChangeFrontPtr
+    lda z:<@WindowNext
+    sta a:windowFrontPtr
+@DontChangeFrontPtr:
+
+    ldy z:<@WindowNext
+    beq @DontUpdateAfterToBefore
+    ; WindowNext->ptrPrev = WindowPrev
+    lda z:<@WindowPrev
+    sta a:WINDOW_ACTIVE_STATE::ptrPrev,y
+@DontUpdateAfterToBefore:
+
+    ; WindowCurrent->ptrPrev = NULL
+    stz a:WINDOW_ACTIVE_STATE::ptrPrev,x
+    ; WindowCurrent->ptrNext = NULL
+    stz a:WINDOW_ACTIVE_STATE::ptrNext,x
+    ; Return pointer to window which was removed
+    txa
+@Return:
+    pld
+    rtl
+
+@ErrorWindowInFrontHasBefore:
+    bra @ErrorWindowInFrontHasBefore
+
+; A = window state ptr
+_L_WindowAddToFrontOfLL:
+    tay
+    tax
+    lda a:windowFrontPtr
+    sta a:WINDOW_ACTIVE_STATE::ptrNext,x
+    stx a:windowFrontPtr
+    tax
+    beq @NoPrevWindow
+    tya
+    sta a:WINDOW_ACTIVE_STATE::ptrPrev,x
+@NoPrevWindow:
+    rts
 
 ; A = window state ptr
 WindowBringToFront:
@@ -92,22 +171,14 @@ WindowBringToFront:
     ; Unlink window from linked list
     txa
     jsl WindowUnlinkFromLL
-    ; Error if the window was not in the LL
-    cmp #0
-    beq @ErrorWindowNotInLL
     ; Add to front of LL, by "pushing" onto front
-    tax
-    lda a:windowFrontPtr
-    sta a:WINDOW_ACTIVE_STATE::ptrAfter,x
-    stx a:windowFrontPtr
+    jsr _L_WindowAddToFrontOfLL
 @Return:
     rtl
 @ErrorPtrNull:
     bra @ErrorPtrNull
 @ErrorWindowInvalid:
     bra @ErrorWindowInvalid
-@ErrorWindowNotInLL:
-    bra @ErrorWindowNotInLL
 
 ; A = window ptr
 WindowGetDefinitionOffset:
@@ -275,6 +346,64 @@ WindowRedraw:
     pld
     rtl
 
+WindowRedrawAll:
+    lda a:windowFrontPtr
+    beq @Return
+@FindEndLoop:
+    tax
+    lda a:WINDOW_ACTIVE_STATE::ptrNext,x
+    bne @FindEndLoop
+@EndFound:
+    txa
+@IterBackwardsLoop:
+    pha
+    jsl WindowRedraw
+    plx
+    lda a:WINDOW_ACTIVE_STATE::ptrPrev,x
+    bne @IterBackwardsLoop
+@Return:
+    rtl
+
+; A = window ptr
+WindowUndraw:
+    FN_PROLOGUE_PRESERVE_ONLY_A $14
+    sta $08
+    jsl WindowGetDefinitionOffset
+    tax
+    lda f:WindowDefinitionTable+WINDOW_DEFINITION::width,x
+    and #$00ff
+    inc
+    inc
+    sta $10
+    lda f:WindowDefinitionTable+WINDOW_DEFINITION::height,x
+    and #$00ff
+    inc
+    asl
+    sta $12
+    lda f:WindowDefinitionTable+WINDOW_DEFINITION::offsetToTilemapEntry,x
+    sta $0e
+    tay
+@PerRowLoop:
+    ldx $10
+    lda #0
+@InnerLoop:
+    sta a:.loword(bg3Buffer+(-SCREEN_WIDTH_TILES-1)*2),y
+    iny
+    iny
+    dex
+    bne @InnerLoop
+    lda $0e
+    clc
+    adc #SCREEN_WIDTH_TILES*2
+    sta $0e
+    tay
+    dec $12
+    bne @PerRowLoop
+    lda #1
+    sta a:bg3BufferDirty
+    pld
+    rtl
+
 ; A = window ptr
 ; X = character
 _L_RenderCharacterAtWindowCursorToBg3:
@@ -348,15 +477,15 @@ WindowOpenByDefinitionId:
     lda $00
     sta a:WINDOW_ACTIVE_STATE::definitionId,x
     stz a:WINDOW_ACTIVE_STATE::attributes,x
-    stz a:WINDOW_ACTIVE_STATE::ptrBefore,x
+    stz a:WINDOW_ACTIVE_STATE::ptrPrev,x
     stz a:WINDOW_ACTIVE_STATE::cursorX,x
     stz a:WINDOW_ACTIVE_STATE::cursorY,x
     ; Put in front
-    lda a:windowFrontPtr
-    sta a:WINDOW_ACTIVE_STATE::ptrAfter,x
-    stx a:windowFrontPtr
-    ; Clear the window's character buffer
     txa
+    jsr _L_WindowAddToFrontOfLL
+@NoPrevWindow:
+    ; Clear the window's character buffer
+    lda $02
     jsl WindowClearCharacterBuffer
     ; Draw the window
     lda $02
@@ -367,6 +496,23 @@ WindowOpenByDefinitionId:
 
 @errorNoWindowsAvailable:
     bra @errorNoWindowsAvailable
+
+; A = definition ID
+WindowCloseByDefinitionId:
+    FN_PROLOGUE_PRESERVE_ONLY_A $08
+    jsl WindowFindByDefinitionId
+    cmp #0
+    beq @Return
+    sta $00
+    jsl WindowUnlinkFromLL
+    jsl WindowUndraw
+    ldx $00
+    lda #$ffff
+    sta a:WINDOW_ACTIVE_STATE::definitionId,x
+    jsl WindowRedrawAll
+@Return:
+    pld
+    rtl
 
 ; A = character+attribute word
 ; implicitly uses active window

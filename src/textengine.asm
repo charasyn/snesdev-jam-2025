@@ -66,6 +66,7 @@ _L_CcPause:
 
 TextDrawCharacter:
     jsl WindowActiveDrawCharacter
+    jsl TextTickOneFrame
     jml TextTickOneFrame
 
 TextTickOneFrame:

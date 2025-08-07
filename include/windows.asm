@@ -13,8 +13,8 @@ MAX_WINDOW_AREA = 384 ; characters
 .struct WINDOW_ACTIVE_STATE
     definitionId .word
     attributes .word
-    ptrBefore .word
-    ptrAfter .word
+    ptrPrev .word
+    ptrNext .word
     cursorX .word
     cursorY .word
     charBufferPtr .word
